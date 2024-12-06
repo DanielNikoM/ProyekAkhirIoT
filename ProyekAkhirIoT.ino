@@ -8,12 +8,12 @@
 #include <UniversalTelegramBot.h>
 #include <ArduinoJson.h>
 
-const char* ssid = "Room - 2304";
-const char* password = "Pikahotarou346";
+const char* ssid = "";
+const char* password = "";
 
 // Initialize Telegram BOT
-String BOTtoken = "8016530830:AAHoNaFoKwk2jcLrcXnkC0AM1aKpQ1UOp2A";
-String CHAT_ID = "7708193329";
+String BOTtoken = "";
+String CHAT_ID = "";
 
 bool sendPhoto = false;
 
