@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WiFiClientSecure.h>
@@ -11,12 +13,10 @@
 #include <ESP32Servo.h>
 #include <addons/TokenHelper.h>
 #include <addons/RTDBHelper.h>
+#include <WiFiManager.h>
 
-const char* ssid = "";
-const char* password = "";
-
-#define FIREBASE_HOST "" 
-#define FIREBASE_AUTH ""             
+#define FIREBASE_HOST ""  // URL Firebase Database
+#define FIREBASE_AUTH ""             // Secret Key Firebase
 
 // Initialize Telegram BOT
 String BOTtoken = "";
@@ -51,9 +51,6 @@ int servo2Pos = 90;
 FirebaseData firebaseData;
 FirebaseAuth auth;
 FirebaseConfig config;
-
-int x = 0;
-int y = 0;
 
 //CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -344,55 +341,80 @@ void TaskCam(void *pvParameters){
     }
     lastTimeBotRan = millis();
   }
+   vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
 void TaskFirebase(void *pvParameters) {
-  while(1) {
-    if (Firebase.ready()) {
-      int xValue = 0, yValue = 0;
-      
-      if (Firebase.getInt(firebaseData, "/joystick/X")) {
-        xValue = firebaseData.intData();
-      } else {
-        Serial.println("Firebase X read error: " + firebaseData.errorReason());
-      }
+  int reconnectAttempts = 0;
+  const int MAX_RECONNECT_ATTEMPTS = 5;
 
-      if (Firebase.getInt(firebaseData, "/joystick/Y")) {
-        yValue = firebaseData.intData();
-      } else {
-        Serial.println("Firebase Y read error: " + firebaseData.errorReason());
+  while(1) {
+    if (!Firebase.ready()) {
+      Serial.println("Firebase not ready. Attempting to reconnect...");
+      Firebase.reconnectWiFi(true);
+      
+      reconnectAttempts++;
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        Serial.println("Failed to reconnect to Firebase. Restarting...");
+        ESP.restart();
       }
-    
-      updateServoPositions(xValue, yValue);
+      
+      delay(2000); 
+      continue;
     }
+
+    reconnectAttempts = 0; 
+
+    int xValue = 0, yValue = 0, button = 0; 
+    
+    if (!Firebase.getInt(firebaseData, "/joystick/X")) {
+      Serial.println("Firebase X read error: " + firebaseData.errorReason());
+    } else {
+      xValue = firebaseData.intData();
+    }
+
+    if (!Firebase.getInt(firebaseData, "/joystick/Y")) {
+      Serial.println("Firebase Y read error: " + firebaseData.errorReason());
+    } else {
+      yValue = firebaseData.intData();
+    }
+
+    if (!Firebase.getInt(firebaseData, "/joystick/Button")) {
+      Serial.println("Firebase Button read error: " + firebaseData.errorReason());
+    } else {
+      button = firebaseData.intData();
+      if (button == 1) {
+        delay(200);
+        sendPhoto = true;
+      }
+    }
+    
+    updateServoPositions(xValue, yValue);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
 void setup(){
+  WiFiManager wm;
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
-  // Init Serial Monitor
   Serial.begin(115200);
   Serial.setDebugOutput(false);
 
   if (!psramFound()) {
   Serial.println("PSRAM not found. Ensure it is enabled in your board configuration.");
-  while (true); // Hentikan jika PSRAM tidak ditemukan
+  while (true); 
   }
 
-  // Set LED Flash as output
   pinMode(FLASH_LED_PIN, OUTPUT);
   digitalWrite(FLASH_LED_PIN, flashState);
 
-  // Config and init the camera
   configInitCamera();
 
-  // Connect to Wi-Fi
-  WiFi.mode(WIFI_STA);
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
+  if (!wm.autoConnect("ESP-CAM")) {
+        Serial.println("Gagal menghubungkan ke WiFi, restart ESP...");
+        ESP.restart();
+    }
   clientTCP.setCACert(TELEGRAM_CERTIFICATE_ROOT); 
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -438,7 +460,7 @@ void setup(){
     xTaskCreatePinnedToCore(
     TaskFirebase,           
     "FirebaseTask",         
-    4096,              
+    8192,              
     NULL,              
     1,                 
     &TaskFirebaseHandle,    

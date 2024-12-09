@@ -1,18 +1,17 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <FirebaseESP32.h>
-// Ganti dengan informasi WiFi Anda
-#define WIFI_SSID "Pikahotarou"
-#define WIFI_PASSWORD "Ehdiagendutloh123"
+#include <WiFiManager.h>
+
 
 // Ganti dengan informasi Firebase Anda
-#define FIREBASE_HOST "https://proyekakhiriot-default-rtdb.asia-southeast1.firebasedatabase.app/"  // URL Firebase Database
-#define FIREBASE_AUTH "UwcukjWpmUEP3rMOpQjOSeSRlc2yf8bbRcgskM59"             // Secret Key Firebase
+#define FIREBASE_HOST ""  
+#define FIREBASE_AUTH ""             
 
 // Pin definitions
-#define VRX_PIN     33    // Pin untuk sumbu X joystick
-#define VRY_PIN     32    // Pin untuk sumbu Y joystick
-#define BUTTON_PIN  25    // Pin untuk tombol joystick
+#define VRX_PIN     33    
+#define VRY_PIN     32    
+#define BUTTON_PIN  25    
 
 // Firebase dan objek WiFi
 FirebaseData firebaseData;
@@ -20,21 +19,24 @@ FirebaseAuth auth;
 FirebaseConfig config;
 
 // Global variables
-int xValue = 0;       // Menyimpan nilai sumbu X
-int yValue = 0;       // Menyimpan nilai sumbu Y
-int buttonState = 1;  // Menyimpan status tombol
+int xValue = 0;       
+int yValue = 0;       
+int buttonState = 1;  
 
 // Function prototypes
 void TaskReadJoystick(void *pvParameters);
 void TaskSendToFirebase(void *pvParameters);
 
 void setup() {
+  WiFiManager wm;
   Serial.begin(115200);
 
   pinMode(BUTTON_PIN, INPUT_PULLUP); 
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Menghubungkan ke WiFi...");
+  if (!wm.autoConnect("ESP-Joystick")) {
+        Serial.println("Gagal menghubungkan ke WiFi, restart ESP...");
+        ESP.restart();
+    }
   
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
@@ -115,8 +117,8 @@ void TaskSendToFirebase(void *pvParameters) {
         Serial.println(firebaseData.errorReason());
       }
 
-      String buttonStatus = (buttonState == LOW) ? "PRESSED" : "NOT PRESSED";
-      if (Firebase.setString(firebaseData, "/joystick/Button", buttonStatus)) {
+      int buttonStatus = (buttonState == LOW) ? 1 : 0;
+      if (Firebase.setInt(firebaseData, "/joystick/Button", buttonStatus)) {
         Serial.println("Button state dikirim ke Firebase.");
       } else {
         Serial.print("Gagal mengirim Button: ");
