@@ -15,8 +15,8 @@
 const char* ssid = "";
 const char* password = "";
 
-#define FIREBASE_HOST "https://proyekakhiriot-default-rtdb.asia-southeast1.firebasedatabase.app/"  // URL Firebase Database
-#define FIREBASE_AUTH "UwcukjWpmUEP3rMOpQjOSeSRlc2yf8bbRcgskM59"             // Secret Key Firebase
+#define FIREBASE_HOST "" 
+#define FIREBASE_AUTH ""             
 
 // Initialize Telegram BOT
 String BOTtoken = "";
