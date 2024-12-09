@@ -12,15 +12,15 @@
 #include <addons/TokenHelper.h>
 #include <addons/RTDBHelper.h>
 
-const char* ssid = "Room - 2304";
-const char* password = "Pikahotarou346";
+const char* ssid = "";
+const char* password = "";
 
 #define FIREBASE_HOST "https://proyekakhiriot-default-rtdb.asia-southeast1.firebasedatabase.app/"  // URL Firebase Database
 #define FIREBASE_AUTH "UwcukjWpmUEP3rMOpQjOSeSRlc2yf8bbRcgskM59"             // Secret Key Firebase
 
 // Initialize Telegram BOT
-String BOTtoken = "8016530830:AAHoNaFoKwk2jcLrcXnkC0AM1aKpQ1UOp2A";
-String CHAT_ID = "7708193329";
+String BOTtoken = "";
+String CHAT_ID = "";
 
 bool sendPhoto = false;
 
