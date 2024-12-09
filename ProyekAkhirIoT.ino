@@ -2,14 +2,21 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WiFiClientSecure.h>
+#include <FirebaseESP32.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "esp_camera.h"
 #include <UniversalTelegramBot.h>
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
+#include <addons/TokenHelper.h>
+#include <addons/RTDBHelper.h>
 
 const char* ssid = "Room - 2304";
 const char* password = "Pikahotarou346";
+
+#define FIREBASE_HOST "https://proyekakhiriot-default-rtdb.asia-southeast1.firebasedatabase.app/"  // URL Firebase Database
+#define FIREBASE_AUTH "UwcukjWpmUEP3rMOpQjOSeSRlc2yf8bbRcgskM59"             // Secret Key Firebase
 
 // Initialize Telegram BOT
 String BOTtoken = "8016530830:AAHoNaFoKwk2jcLrcXnkC0AM1aKpQ1UOp2A";
@@ -21,6 +28,8 @@ WiFiClientSecure clientTCP;
 UniversalTelegramBot bot(BOTtoken, clientTCP);
 
 #define FLASH_LED_PIN 4
+#define SERVO_1      14
+#define SERVO_2      15
 bool flashState = LOW;
 
 //Checks for new messages every 1 second.
@@ -28,8 +37,23 @@ int botRequestDelay = 1000;
 unsigned long lastTimeBotRan;
 
 TaskHandle_t TaskCamHandle = NULL;
+TaskHandle_t TaskFirebaseHandle = NULL;
 
 WebServer server(80);
+
+Servo servo1;
+Servo servo2;
+
+int servo1Pos = 90;
+int servo2Pos = 90;
+
+// Firebase dan objek WiFi
+FirebaseData firebaseData;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+int x = 0;
+int y = 0;
 
 //CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -257,7 +281,7 @@ void handle_jpg_stream() {
         client.write(buf, strlen(buf));
         client.write((char *)fb->buf, s);
         client.write(BOUNDARY, strlen(BOUNDARY));
-        esp_camera_fb_return(fb); // Kembalikan buffer untuk penggunaan ulang
+        esp_camera_fb_return(fb); 
     }
 }
 
@@ -280,6 +304,29 @@ void handle_jpg() {
     esp_camera_fb_return(fb);
 }
 
+void updateServoPositions(int x, int y) {
+  const int THRESHOLD_HIGH = 3072;
+  const int THRESHOLD_LOW = 1024;
+  const int STEP = 10;
+
+  // Servo 2 (Horizontal Movement)
+  if (x > THRESHOLD_HIGH && y > THRESHOLD_HIGH) {
+    servo2Pos = constrain(servo2Pos + STEP, 0, 180);
+  } else if (x < THRESHOLD_LOW && y < THRESHOLD_LOW) {
+    servo2Pos = constrain(servo2Pos - STEP, 0, 180);
+  }
+
+  // Servo 1 (Vertical Movement)
+  if (x < THRESHOLD_LOW && y > THRESHOLD_HIGH) {
+    servo1Pos = constrain(servo1Pos + STEP, 0, 180);
+  } else if (x > THRESHOLD_HIGH && y < THRESHOLD_LOW) {
+    servo1Pos = constrain(servo1Pos - STEP, 0, 180);
+  }
+
+  servo1.write(servo1Pos);
+  servo2.write(servo2Pos);
+}
+
 void TaskCam(void *pvParameters){
   while(1){
     if (sendPhoto) {
@@ -300,6 +347,28 @@ void TaskCam(void *pvParameters){
   }
 }
 
+void TaskFirebase(void *pvParameters) {
+  while(1) {
+    if (Firebase.ready()) {
+      int xValue = 0, yValue = 0;
+      
+      if (Firebase.getInt(firebaseData, "/joystick/X")) {
+        xValue = firebaseData.intData();
+      } else {
+        Serial.println("Firebase X read error: " + firebaseData.errorReason());
+      }
+
+      if (Firebase.getInt(firebaseData, "/joystick/Y")) {
+        yValue = firebaseData.intData();
+      } else {
+        Serial.println("Firebase Y read error: " + firebaseData.errorReason());
+      }
+    
+      updateServoPositions(xValue, yValue);
+    }
+  }
+}
+
 void setup(){
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
   // Init Serial Monitor
@@ -310,7 +379,6 @@ void setup(){
   Serial.println("PSRAM not found. Ensure it is enabled in your board configuration.");
   while (true); // Hentikan jika PSRAM tidak ditemukan
   }
-
 
   // Set LED Flash as output
   pinMode(FLASH_LED_PIN, OUTPUT);
@@ -336,6 +404,20 @@ void setup(){
   Serial.print("ESP32-CAM IP Address: ");
   Serial.println(WiFi.localIP()); 
 
+  config.host = FIREBASE_HOST;
+  config.signer.tokens.legacy_token = FIREBASE_AUTH;
+
+  
+  servo1.attach(SERVO_1, 1000, 2000);
+  servo2.attach(SERVO_2, 1000, 2000);
+
+  servo1.write(servo1Pos);
+  servo2.write(servo2Pos);
+
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+  Serial.println("Terhubung ke Firebase!");
+
   server.on("/mjpeg/1", HTTP_GET, handle_jpg_stream);
   server.on("/jpg", HTTP_GET, handle_jpg);
   server.onNotFound(handleNotFound);
@@ -344,13 +426,23 @@ void setup(){
   Serial.println("HTTP server started");
 
   xTaskCreatePinnedToCore(
-    TaskCam,           // Task function
-    "CamTask",         // Task name
-    8192,              // Stack size
-    NULL,              // Parameters
-    2,                 // Priority
-    &TaskCamHandle,    // Task handle
-    0                  // Core (0 or 1)
+    TaskCam,           
+    "CamTask",         
+    8192,              
+    NULL,              
+    1,                 
+    &TaskCamHandle,    
+    0                  
+  );
+
+    xTaskCreatePinnedToCore(
+    TaskFirebase,           
+    "FirebaseTask",         
+    4096,              
+    NULL,              
+    1,                 
+    &TaskFirebaseHandle,    
+    1                  
   );
 }
 
