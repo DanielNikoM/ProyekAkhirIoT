@@ -85,3 +85,7 @@ Berikut adalah penjelasan baris demi baris untuk kode yang digunakan dalam proye
 [Joystick] -> [ESP32 (Joystick)] -> [Firebase] <- [ESP32-CAM] <- [Telegram]
                                            |
                                      [Web Server]
+
+
+## Flow Chart
+![8BJiu.png](https://s6.imgcdn.dev/8BJiu.png)
