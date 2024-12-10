@@ -73,9 +73,6 @@ Berikut adalah penjelasan baris demi baris untuk kode yang digunakan dalam proye
 4. **Menggerakkan Kamera**:
    - Gerakkan joystick untuk mengontrol posisi kamera.
 
-## Cara Kerja Program
-Proyek ini menggunakan dua ESP32 terhubung melalui Wi-Fi: ESP32-CAM untuk kamera dan streaming video, serta ESP32 Joystick untuk kontrol posisi kamera. ESP32-CAM bertanggung jawab untuk menangkap gambar, streaming video langsung ke web server, dan mengontrol posisi kamera menggunakan servo motor yang diatur berdasarkan data joystick dari Firebase. Pengguna dapat memberikan perintah melalui bot Telegram untuk mengambil foto atau mengaktifkan/mematikan flash, dengan foto yang dikirim kembali melalui Telegram. ESP32 Joystick membaca input dari joystick (X, Y) dan tombol, mengirimkan data ini ke Firebase. ESP32-CAM kemudian membaca data dari Firebase untuk mengubah posisi kamera sesuai input terbaru. Dengan Firebase, komunikasi antara kedua perangkat berjalan secara real-time, memungkinkan kontrol jarak jauh melalui Telegram bot, yang memberikan kontrol yang efektif dan efisien kepada pengguna.
-
 ## Alur Sistem
 1. ESP32 joystick membaca data X, Y, dan status tombol.
 2. Data joystick dikirim ke Firebase.
@@ -93,3 +90,11 @@ Proyek ini menggunakan dua ESP32 terhubung melalui Wi-Fi: ESP32-CAM untuk kamera
 
 ## Flow Chart
 ![8BJiu.png](https://s6.imgcdn.dev/8BJiu.png)
+
+## Desain Hardware dan Bentuk Alat Fisik
+# ESP32 CAM
+![unnamed](https://github.com/user-attachments/assets/bfc3e9de-6b4b-4b27-9dab-ec9f5ded8546)
+# ESP32 Joystick
+![unnamed-1](https://github.com/user-attachments/assets/511c40b5-0b65-4de7-a4b1-a2e6f4af7b7c)
+
+
